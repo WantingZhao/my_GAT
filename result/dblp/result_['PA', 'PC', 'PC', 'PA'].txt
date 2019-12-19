@@ -1,0 +1,1 @@
+"temp---------at_best_validate: valid accuracy=0.88250, test accuracy=0.87190, epoch=2, metapath=['PA', 'PC', 'PC', 'PA']"
