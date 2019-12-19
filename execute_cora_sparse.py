@@ -3,10 +3,11 @@ import scipy.sparse as sp
 import numpy as np
 import tensorflow as tf
 import argparse
-
+import os
 from models import GAT
 from models import SpGAT
 from utils import process
+import json
 
 checkpt_file = 'pre_trained/cora/mod_cora.ckpt'
 
@@ -14,7 +15,7 @@ dataset = 'dblp'
 
 # training params
 batch_size = 1
-nb_epochs = 100000
+nb_epochs = 100
 patience = 100
 lr = 0.005  # learning rate
 l2_coef = 0.0005  # weight decay
@@ -39,6 +40,14 @@ print('model: ' + str(model))
 
 sparse = True
 
+
+result_path ='result/'+dataset+'/'
+if not os.path.exists('result'):
+    os.mkdir('result')
+if not os.path.exists(result_path):
+    os.mkdir(result_path)
+
+
 metapaths,metapaths_name, adjs, features, y_train, y_val, y_test, train_mask, val_mask, test_mask = process.load_data(dataset)
 features, spars = process.preprocess_features(features)
 
@@ -55,7 +64,8 @@ val_mask = val_mask[np.newaxis]
 test_mask = test_mask[np.newaxis]
 
 all_metapaths_best = (0,0,0,0)
-for metapath_id in range(5,6):#range(len(metapaths)):
+for metapath_id in range(len(metapaths)):
+    best = (0, 0, 0, '')
     print("metapath=",metapaths_name[metapath_id],"-----------------------------")
     adj=adjs[metapath_id]
     if sparse:
@@ -157,9 +167,44 @@ for metapath_id in range(5,6):#range(len(metapaths)):
                     val_acc_avg += acc_vl
                     vl_step += 1
 
-                print('Training: loss = %.5f, acc = %.5f | Val: loss = %.5f, acc = %.5f' %
-                      (train_loss_avg / tr_step, train_acc_avg / tr_step,
+                print('Epoch = %d, Training: loss = %.5f, acc = %.5f | Val: loss = %.5f, acc = %.5f' %
+                      (epoch, train_loss_avg / tr_step, train_acc_avg / tr_step,
                        val_loss_avg / vl_step, val_acc_avg / vl_step))
+
+                #保存最好的valid acc
+                if val_acc_avg > best[0]:
+                    ts_size = features.shape[0]
+                    ts_step = 0
+                    ts_loss = 0.0
+                    ts_acc = 0.0
+
+                    while ts_step * batch_size < ts_size:
+                        if sparse:
+                            bbias = biases
+                        else:
+                            bbias = biases[ts_step * batch_size:(ts_step + 1) * batch_size]
+                        loss_value_ts, acc_ts = sess.run([loss, accuracy],
+                                                         feed_dict={
+                                                             ftr_in: features[
+                                                                     ts_step * batch_size:(ts_step + 1) * batch_size],
+                                                             bias_in: bbias,
+                                                             lbl_in: y_test[
+                                                                     ts_step * batch_size:(ts_step + 1) * batch_size],
+                                                             msk_in: test_mask[
+                                                                     ts_step * batch_size:(ts_step + 1) * batch_size],
+                                                             is_train: False,
+                                                             attn_drop: 0.0, ffd_drop: 0.0})
+                        ts_loss += loss_value_ts
+                        ts_acc += acc_ts
+                        ts_step += 1
+
+                    print('Test loss:', ts_loss / ts_step, '; Test accuracy:', ts_acc / ts_step)
+                    best = (val_acc_avg, ts_acc / ts_step, epoch, str(metapaths_name[metapath_id]))
+                    result = "temp---------at_best_validate: valid accuracy=%.5f, test accuracy=%.5f, epoch=%d, metapath=%s" % (
+                        best[0], best[1], best[2], best[3])
+                    print(result)
+                    with open(result_path + "result_%s.txt" % str(metapaths_name[metapath_id]), 'w') as fout:
+                        fout.write(json.dumps(result))
 
                 if val_acc_avg / vl_step >= vacc_mx or val_loss_avg / vl_step <= vlss_mn:
                     if val_acc_avg / vl_step >= vacc_mx and val_loss_avg / vl_step <= vlss_mn:
@@ -208,3 +253,18 @@ for metapath_id in range(5,6):#range(len(metapaths)):
             print('Test loss:', ts_loss / ts_step, '; Test accuracy:', ts_acc / ts_step)
 
             sess.close()
+
+            result = "at_best_validate: valid accuracy=%.5f, test accuracy=%.5f, epoch=%d, metapath=%s" % (
+            best[0], best[1], best[2], best[3])
+            print(result)
+            with open(result_path + "result_%s.txt" % str(metapaths_name[metapath_id]), 'w') as fout:
+                fout.write(json.dumps(result))
+
+            if best[1] > all_metapaths_best[1]:
+                all_metapaths_best = best
+
+    result = "best result: valid accuracy=%.5f, test accuracy=%.5f, epoch=%d, metapath=%s" % (
+    all_metapaths_best[0], all_metapaths_best[1], all_metapaths_best[2], all_metapaths_best[3])
+    print(result)
+    with open(result_path + "best_result.txt", 'w') as fout:
+        fout.write(json.dumps(result))

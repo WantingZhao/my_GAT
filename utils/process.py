@@ -106,6 +106,11 @@ def load_data(dataset_str):
 
     num_nodes, edge_sets, metapaths,metapaths_name, train_idx, valid_idx, test_idx, adj_indices, adj_values, allx, ally = common_load_data(dataset_str)
     print(metapaths)
+    #
+    # metapaths=metapaths[5:6]
+    # metapaths_name =metapaths_name[5:6]
+
+
     adjs =[]
     for metapath in metapaths:
         adj = scipy.sparse.eye(num_nodes)
