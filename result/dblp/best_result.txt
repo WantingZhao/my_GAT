@@ -1,0 +1,1 @@
+"best result: valid accuracy=0.88000, test accuracy=0.89255, epoch=8, metapath=['PA', 'PC', 'PC', 'PA']"

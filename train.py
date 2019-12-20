@@ -9,13 +9,12 @@ from models import SpGAT
 from utils import process
 import json
 
-checkpt_file = 'pre_trained/cora/mod_cora.ckpt'
-
 dataset = 'dblp'
+checkpt_file = 'pre_trained/cora/model_'+dataset+'cora.ckpt'
 
 # training params
 batch_size = 1
-nb_epochs = 20
+nb_epochs = 100
 patience = 100
 lr = 0.005  # learning rate
 l2_coef = 0.0005  # weight decay #Weight for L2 loss on ***
