@@ -100,13 +100,13 @@ def sample_mask(idx, l):
 #     return adj, features, y_train, y_val, y_test, train_mask, val_mask, test_mask
 
 
-def load_data(dataset_str):
+def load_data(dataset_str,per_class):
     dataset_str='../my_mixhop/data/ind.'+dataset_str
     #[[], ['PA'], ['PA', 'PA'], ['PA', 'PC'], ['PA', 'PT'], ['PC'], ['PC', 'PC'], ['PC', 'PT'], ['PT'], ['PT', 'PT'], ['PA', 'PA', 'PA', 'PA'], ['PA', 'PC', 'PC', 'PA'], ['PA', 'PT', 'PT', 'PA'], ['PC', 'PC', 'PC', 'PC'], ['PC', 'PT', 'PT', 'PC'], ['PT', 'PT', 'PT', 'PT']]
 
-    num_nodes, edge_sets, metapaths,metapaths_name, train_idx, valid_idx, test_idx, adj_indices, adj_values, allx, ally = common_load_data(dataset_str)
+    num_nodes, edge_sets, metapaths,metapaths_name, train_idx, valid_idx, test_idx, adj_indices, adj_values, allx, ally = common_load_data(dataset_str,training_per_class=per_class)
     print(metapaths)
-    #
+
     # metapaths=metapaths[5:6]
     # metapaths_name =metapaths_name[5:6]
 
@@ -123,8 +123,9 @@ def load_data(dataset_str):
             adj1 = scipy.sparse.csr_matrix((data, (row, col)), shape=(num_nodes, num_nodes))
             adj = adj * adj1
             adj = adj.ceil()
-        adjs.append(sp.eye(adj.shape[0])+adj)
-    print('adjs---------------', adjs)
+        #adj=((sp.eye(adj.shape[0])+adj)/2).ceil
+        adjs.append(adj)
+    #print('adjs---------------', adjs)
 
 
     train_mask =  np.zeros((num_nodes), dtype=np.bool)
@@ -210,7 +211,10 @@ def standardize_data(f, train_mask):
 def preprocess_features(features):
     """Row-normalize feature matrix and convert to tuple representation"""
     rowsum = np.array(features.sum(1))
-    print("rowsum",rowsum)
+    #print("rowsum",rowsum)
+    for i in range(len(rowsum)):
+        if rowsum[i][0]==0:
+            rowsum[i][0]=0.000001
     r_inv = np.power(rowsum, -1).flatten()
     r_inv[np.isinf(r_inv)] = 0.
     r_mat_inv = sp.diags(r_inv)
